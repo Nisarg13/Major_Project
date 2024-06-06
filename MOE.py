@@ -388,10 +388,32 @@ def plot_ypred_vs_timesteps(ypred_time_series, theta_time_series, trials_to_plot
     plt.show()
 
 
+# def plot_moe(moe_series, trials_to_plot):
+#     """
+#     Plot Model Output Error (MOE) vs timestamp for specific trials.
+#     """
+#     for trial in trials_to_plot:
+#         if trial not in moe_series:
+#             print(f"Trial {trial} data not available.")
+#             continue
+#
+#         moe_values = moe_series[trial]
+#         time_steps = list(moe_values.keys())
+#         moe_values_list = [np.linalg.norm(moe) for moe in moe_values.values()]
+#         plt.plot(time_steps, moe_values_list, label=f'Trial {trial}')
+#
+#     plt.xlabel('Time Step')
+#     plt.ylabel('Model Output Error (MOE)')
+#     plt.title('Model Output Error (MOE) vs Time Step')
+#     plt.legend()
+#     plt.show()
+
 def plot_moe(moe_series, trials_to_plot):
     """
-    Plot Model Output Error (MOE) vs timestamp for specific trials.
+    Plot Model Output Error (MOE) vs timestamp for specific trials for two torques separately.
     """
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
+
     for trial in trials_to_plot:
         if trial not in moe_series:
             print(f"Trial {trial} data not available.")
@@ -399,13 +421,26 @@ def plot_moe(moe_series, trials_to_plot):
 
         moe_values = moe_series[trial]
         time_steps = list(moe_values.keys())
-        moe_values_list = [np.linalg.norm(moe) for moe in moe_values.values()]
-        plt.plot(time_steps, moe_values_list, label=f'Trial {trial}')
+        moe_values_array = np.array(list(moe_values.values()))
 
-    plt.xlabel('Time Step')
-    plt.ylabel('Model Output Error (MOE)')
-    plt.title('Model Output Error (MOE) vs Time Step')
-    plt.legend()
+        if moe_values_array.shape[0] == 0:
+            print(f"No data available for Trial {trial}")
+            continue
+
+        ax1.plot(time_steps, moe_values_array[:, 0], label=f'MOE Torque1 Trial {trial}')
+        ax2.plot(time_steps, moe_values_array[:, 1], label=f'MOE Torque2 Trial {trial}')
+
+    ax1.set_xlabel('Time Step')
+    ax1.set_ylabel('MOE Torque1')
+    ax1.set_title('Model Output Error (MOE) for Torque1 Across Time Steps')
+    ax1.legend()
+
+    ax2.set_xlabel('Time Step')
+    ax2.set_ylabel('MOE Torque2')
+    ax2.set_title('Model Output Error (MOE) for Torque2 Across Time Steps')
+    ax2.legend()
+
+    plt.tight_layout()
     plt.show()
 
 
