@@ -1,4 +1,5 @@
 import csv
+
 import matplotlib.pyplot as plt
 import mujoco.viewer
 import numpy as np
@@ -19,6 +20,7 @@ def iterative_learning_update(previous_torques, desired_angles, current_angles, 
     # Ensure that previous_torques and control_update are of the same size
     new_torques = lambda_factor * previous_torques + control_update
     return new_torques, errors
+
 
 def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_trials=1000,
                                     max_time_steps=1000):
@@ -82,87 +84,6 @@ def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_tria
 
     return error_result, theta_time_series, previous_torques_series, spe_time_series, ypred_time_series, error_time_series
 
-# def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_trials=1000,
-#                                     max_time_steps=1000):
-#     target_angles = np.array([np.pi / 4] * len(actuator_list))  # Target angles for each joint
-#
-#     error_result = {}  # Dictionary to store trial number as key and (MSE, resultant angle) as value
-#     data.time = 0
-#     theta_time_series = {trial: {} for trial in range(1, num_trials + 1)}
-#     previous_torques_series = {trial: np.zeros((max_time_steps, len(actuator_list))) for trial in
-#                                range(1, num_trials + 1)}
-#     previous_torques = np.zeros((max_time_steps, len(actuator_list)))
-#     current_angles = np.array([data.qpos[i] for i in range(len(actuator_list))])
-#
-#     error_time_series = {trial: {} for trial in range(1, num_trials + 1)}
-#
-#     ypred_series = np.zeros_like(current_angles)
-#     spe_time_series = {trial: {} for trial in range(1, num_trials + 1)}
-#     ypred_time_series = {trial: {} for trial in range(1, num_trials + 1)}  # Store ypred for each trial and timestep
-#
-#     for trial in range(1, num_trials + 1):
-#         data.qpos[:] = 0  # Reset joint positions to zero at the start of each trial
-#         if trial <= 400:
-#             phase = 'BaseLine'
-#         elif 400 < trial <= 600:
-#             phase = 'Adaptation'
-#         elif 600 < trial <= 800:
-#             phase = 'Washout'
-#         else:
-#             phase = 'Readaptation'
-#
-#         print(f"Starting trial {trial} for {phase} Phase")
-#         for time_step in range(max_time_steps):
-#             mujoco.mj_step(model, data)
-#             viewer.sync()
-#             current_angles = np.array([data.qpos[i] for i in range(len(actuator_list))])
-#             data.time += model.opt.timestep
-#
-#             theta_time_series[trial][time_step] = current_angles.tolist()
-#             previous_torques_series[trial][time_step] = previous_torques[time_step].tolist()
-#
-#             perturbation = -1 if phase in ['Adaptation', 'Readaptation'] else 0
-#
-#             new_torques = iterative_learning_update(previous_torques[time_step], target_angles, current_angles,
-#                                                     lambda_factor, learning_rate)
-#             previous_torques[time_step] = new_torques
-#             previous_torques_series[trial][time_step] = new_torques.tolist()
-#
-#             data.ctrl[0] = new_torques[0] + perturbation
-#             data.ctrl[1] = new_torques[1]
-#
-#             # Calculate SPE
-#             spe = current_angles - ypred_series
-#             spe_time_series[trial][time_step] = spe.tolist()
-#
-#             # Update predicted sensory output
-#             ypred_series = lambda_pred * ypred_series + gamma_pred * np.tanh(spe)
-#             ypred_time_series[trial][time_step] = ypred_series.tolist()  # Store ypred
-#
-#
-#         # perturbation = 0
-#         # if phase in ['Adaptation', 'Readaptation']:
-#         #     perturbation = -1
-#         #
-#         # new_torques = np.zeros((max_time_steps, len(actuator_list)))
-#         # for i, current_angle in enumerate(theta_time_series[trial].items()):
-#         #     new_torques[i], errors = iterative_learning_update(previous_torques[i], target_angles, current_angle[1],
-#         #                                                lambda_factor, learning_rate)
-#         #     previous_torques[i] = new_torques[i]
-#         #     previous_torques_series[trial][i] = previous_torques[i].tolist()
-#         #     error_time_series[trial][i] = errors.tolist()  # Store errors
-#         #
-#         #     # Print errors for trial 10
-#         #     # if trial == 10:
-#         #     #     print(f"Trial 10, Time Step {i}: Errors = {errors}")
-#         #
-#         # data.ctrl[0] = new_torques[999][0] + perturbation
-#         # data.ctrl[1] = new_torques[999][1]
-#
-#         error_result[trial] = (np.linalg.norm(target_angles - current_angles), current_angles.tolist())
-#
-#     return error_result, theta_time_series, previous_torques_series, spe_time_series, ypred_time_series, error_time_series
-
 
 def plot_specific_trials_theta_time_series(theta_time_series, trials_to_plot, max_time_steps):
     desired_angle = np.pi / 4  # Desired angle in radians
@@ -202,6 +123,7 @@ def plot_specific_trials_theta_time_series(theta_time_series, trials_to_plot, ma
     plt.tight_layout()
     plt.show()
 
+
 def plot_error_vs_timesteps(theta_time_series, desired_angle, trials_to_plot, max_time_steps):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
 
@@ -211,7 +133,8 @@ def plot_error_vs_timesteps(theta_time_series, desired_angle, trials_to_plot, ma
             continue
 
         # Collect the angles for the specified trial and convert to a 2D array
-        angles_list = [theta_time_series[trial][time_step] for time_step in range(max_time_steps) if time_step in theta_time_series[trial]]
+        angles_list = [theta_time_series[trial][time_step] for time_step in range(max_time_steps) if
+                       time_step in theta_time_series[trial]]
         angles_array = np.array(angles_list)
 
         if angles_array.shape[0] == 0:
@@ -299,6 +222,7 @@ def plot_previous_torques_series(previous_torques_series, trials_to_plot, max_ti
     plt.tight_layout()
     plt.show()
 
+
 def plot_mse_across_phases(mse_values):
     # Dividing the trials into phases, each with 100 trials
     baseline_trials = mse_values[0:100]
@@ -320,6 +244,7 @@ def plot_mse_across_phases(mse_values):
     plt.grid(True)
     plt.show()
 
+
 def plot_spe_vs_timesteps(spe_time_series, trials_to_plot, max_time_steps):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
 
@@ -328,7 +253,8 @@ def plot_spe_vs_timesteps(spe_time_series, trials_to_plot, max_time_steps):
             print(f"Trial {trial} data not available.")
             continue
 
-        spe_list = [spe_time_series[trial][time_step] for time_step in range(max_time_steps) if time_step in spe_time_series[trial]]
+        spe_list = [spe_time_series[trial][time_step] for time_step in range(max_time_steps) if
+                    time_step in spe_time_series[trial]]
         spe_array = np.array(spe_list)
 
         if spe_array.shape[0] == 0:
@@ -351,6 +277,7 @@ def plot_spe_vs_timesteps(spe_time_series, trials_to_plot, max_time_steps):
     plt.tight_layout()
     plt.show()
 
+
 def plot_ypred_vs_timesteps(ypred_time_series, theta_time_series, trials_to_plot, max_time_steps):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
     colors = plt.cm.get_cmap('tab10', len(trials_to_plot))
@@ -361,11 +288,13 @@ def plot_ypred_vs_timesteps(ypred_time_series, theta_time_series, trials_to_plot
             continue
 
         # Collect ypred values for the specified trial
-        ypred_list = [ypred_time_series[trial][time_step] for time_step in range(max_time_steps) if time_step in ypred_time_series[trial]]
+        ypred_list = [ypred_time_series[trial][time_step] for time_step in range(max_time_steps) if
+                      time_step in ypred_time_series[trial]]
         ypred_array = np.array(ypred_list)
 
         # Collect actual theta values for the specified trial
-        theta_list = [theta_time_series[trial][time_step] for time_step in range(max_time_steps) if time_step in theta_time_series[trial]]
+        theta_list = [theta_time_series[trial][time_step] for time_step in range(max_time_steps) if
+                      time_step in theta_time_series[trial]]
         theta_array = np.array(theta_list)
 
         if ypred_array.shape[0] == 0 or theta_array.shape[0] == 0:
@@ -374,10 +303,12 @@ def plot_ypred_vs_timesteps(ypred_time_series, theta_time_series, trials_to_plot
 
         color = colors(idx)
         ax1.plot(range(ypred_array.shape[0]), ypred_array[:, 0], label=f'ypred Theta1 Trial {trial}', color=color)
-        ax1.plot(range(theta_array.shape[0]), theta_array[:, 0], linestyle='--', color=color, label=f'actual Theta1 Trial {trial}')
+        ax1.plot(range(theta_array.shape[0]), theta_array[:, 0], linestyle='--', color=color,
+                 label=f'actual Theta1 Trial {trial}')
 
         ax2.plot(range(ypred_array.shape[0]), ypred_array[:, 1], label=f'ypred Theta2 Trial {trial}', color=color)
-        ax2.plot(range(theta_array.shape[0]), theta_array[:, 1], linestyle='--', color=color, label=f'actual Theta2 Trial {trial}')
+        ax2.plot(range(theta_array.shape[0]), theta_array[:, 1], linestyle='--', color=color,
+                 label=f'actual Theta2 Trial {trial}')
 
     ax1.set_xlabel('Time Step')
     ax1.set_ylabel('Theta1 (radians)')
@@ -393,13 +324,13 @@ def plot_ypred_vs_timesteps(ypred_time_series, theta_time_series, trials_to_plot
     plt.show()
 
 
-
 def write_to_csv(error_result, filepath):
     with open(filepath, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Trial Number', 'MSE', 'Resultant Angles'])
         for trial, (mse, angles) in error_result.items():
             writer.writerow([trial, mse] + angles)
+
 
 def main():
     model_path = '2R.xml'  # Replace with your actual model path
@@ -443,7 +374,6 @@ def main():
 
         # Plot errors for the user-specified trial and time steps
         plot_errors_for_trial(error_time_series, specific_trial, specific_time_steps)
-
 
 
 if __name__ == "__main__":
