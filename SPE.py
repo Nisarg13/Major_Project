@@ -8,6 +8,15 @@ lambda_factor = 1  # Forgetting factor
 learning_rate = 0.01  # Learning rate
 lambda_pred = 0.7  # Forgetting factor for prediction
 gamma_pred = 0.2  # Learning rate for prediction
+lambda_ff = 0.7  # Forgetting factor for feedforward control
+gamma_ff = 0.2  # Learning rate for feedforward control
+
+
+def calculate_model_output_error(M_rho, uk_minus_1, y_pred_k_minus_1):
+    """
+    Calculate the model output error.
+    """
+    return M_rho @ uk_minus_1 - y_pred_k_minus_1
 
 
 def iterative_learning_update(previous_torques, desired_angles, current_angles, lambda_factor, learning_rate):
@@ -20,6 +29,10 @@ def iterative_learning_update(previous_torques, desired_angles, current_angles, 
     # Ensure that previous_torques and control_update are of the same size
     new_torques = lambda_factor * previous_torques + control_update
     return new_torques, errors
+
+
+def update_feedforward_control_input(uff, lambda_ff, gamma_ff, M_rho_inv, epsilon_moe):
+    return lambda_ff * uff + gamma_ff * M_rho_inv @ np.tanh(epsilon_moe)
 
 
 def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_trials=1000,
@@ -39,6 +52,15 @@ def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_tria
     ypred_series = np.zeros_like(current_angles)
     spe_time_series = {trial: {} for trial in range(1, num_trials + 1)}
     ypred_time_series = {trial: {} for trial in range(1, num_trials + 1)}  # Store ypred for each trial and timestep
+
+    uff_time_series = {trial: np.zeros((max_time_steps, len(actuator_list))) for trial in range(1, num_trials + 1)}
+    uff = np.zeros((max_time_steps, len(actuator_list)))
+    # Initialize M_rho as a 2x2 identity matrix
+    M_rho = np.eye(2)
+    M_rho_inv = np.linalg.pinv(M_rho)
+    print(M_rho_inv)
+    # Collect MOE values
+    moe_series = {trial: {} for trial in range(1, num_trials + 1)}
 
     for trial in range(1, num_trials + 1):
         data.qpos[:] = 0  # Reset joint positions to zero at the start of each trial
@@ -63,6 +85,9 @@ def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_tria
 
             perturbation = -1 if phase in ['Adaptation', 'Readaptation'] else 0
 
+            model_output_error = calculate_model_output_error(M_rho, previous_torques[time_step], ypred_series)
+            moe_series[trial][time_step] = model_output_error.tolist()
+
             new_torques, errors = iterative_learning_update(previous_torques[time_step], target_angles, current_angles,
                                                             lambda_factor, learning_rate)
             previous_torques[time_step] = new_torques
@@ -80,9 +105,15 @@ def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_tria
             ypred_series = lambda_pred * ypred_series + gamma_pred * np.tanh(spe)
             ypred_time_series[trial][time_step] = ypred_series.tolist()  # Store ypred
 
+            uff[time_step] = update_feedforward_control_input(
+                uff[time_step - 1] if time_step > 0 else np.zeros_like(uff[0]), lambda_ff, gamma_ff, M_rho_inv,
+                model_output_error)
+            uff_time_series[trial][time_step] = uff[time_step].tolist()
+
         error_result[trial] = (np.linalg.norm(target_angles - current_angles), current_angles.tolist())
 
-    return error_result, theta_time_series, previous_torques_series, spe_time_series, ypred_time_series, error_time_series
+    return (error_result, theta_time_series, previous_torques_series, spe_time_series, ypred_time_series,
+            error_time_series, moe_series, uff_time_series)
 
 
 def plot_specific_trials_theta_time_series(theta_time_series, trials_to_plot, max_time_steps):
@@ -223,6 +254,39 @@ def plot_previous_torques_series(previous_torques_series, trials_to_plot, max_ti
     plt.show()
 
 
+def plot_uff_series(uff_time_series, trials_to_plot, max_time_steps):
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
+
+    for trial in trials_to_plot:
+        if trial not in uff_time_series:
+            print(f"Trial {trial} data not available.")
+            continue
+
+        # Collect the uff values for the specified trial and convert to a 2D array
+        uff_list = [uff_time_series[trial][time_step] for time_step in range(max_time_steps)]
+        uff_array = np.array(uff_list)
+
+        if uff_array.shape[0] == 0:
+            print(f"No data available for Trial {trial}")
+            continue
+
+        ax1.plot(range(uff_array.shape[0]), uff_array[:, 0], label=f'uFF1 Trial {trial}')
+        ax2.plot(range(uff_array.shape[0]), uff_array[:, 1], label=f'uFF2 Trial {trial}')
+
+    ax1.set_xlabel('Time Step')
+    ax1.set_ylabel('uFF1')
+    ax1.set_title('uFF1 Across Time Steps for Specific Trials')
+    ax1.legend()
+
+    ax2.set_xlabel('Time Step')
+    ax2.set_ylabel('uFF2')
+    ax2.set_title('uFF2 Across Time Steps for Specific Trials')
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
 def plot_mse_across_phases(mse_values):
     # Dividing the trials into phases, each with 100 trials
     baseline_trials = mse_values[0:100]
@@ -324,6 +388,27 @@ def plot_ypred_vs_timesteps(ypred_time_series, theta_time_series, trials_to_plot
     plt.show()
 
 
+def plot_moe(moe_series, trials_to_plot):
+    """
+    Plot Model Output Error (MOE) vs timestamp for specific trials.
+    """
+    for trial in trials_to_plot:
+        if trial not in moe_series:
+            print(f"Trial {trial} data not available.")
+            continue
+
+        moe_values = moe_series[trial]
+        time_steps = list(moe_values.keys())
+        moe_values_list = [np.linalg.norm(moe) for moe in moe_values.values()]
+        plt.plot(time_steps, moe_values_list, label=f'Trial {trial}')
+
+    plt.xlabel('Time Step')
+    plt.ylabel('Model Output Error (MOE)')
+    plt.title('Model Output Error (MOE) vs Time Step')
+    plt.legend()
+    plt.show()
+
+
 def write_to_csv(error_result, filepath):
     with open(filepath, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -340,7 +425,7 @@ def main():
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
         viewer.cam.distance *= 5  # Adjust camera distance
-        error_result, theta_time_series, previous_torques_series, spe_time_series, ypred_time_series, error_time_series = simulate_with_phases_and_viewer(
+        error_result, theta_time_series, previous_torques_series, spe_time_series, ypred_time_series, error_time_series, moe_series, uff_time_series = simulate_with_phases_and_viewer(
             model, data, viewer,
             actuator_list)
         csv_file_path = 'Error_Results.csv'  # Define the path for your CSV file
@@ -352,6 +437,7 @@ def main():
 
         plot_error_vs_timesteps(theta_time_series, np.pi / 4, trials_to_plot, 1000)  # Plot error vs time steps
 
+        plot_moe(moe_series, trials_to_plot)
         trials = list(error_result.keys())
         mse_values = [error_result[trial][0] for trial in trials]
         plot_mse_across_phases(mse_values)
@@ -362,7 +448,7 @@ def main():
         plt.grid(True)
         plt.show()
         plot_previous_torques_series(previous_torques_series, trials_to_plot, max_time_steps=1000)
-
+        plot_uff_series(uff_time_series, trials_to_plot, max_time_steps=1000)
         plot_spe_vs_timesteps(spe_time_series, trials_to_plot, max_time_steps=1000)
         # Plot the predicted theta values for specific trials
         plot_ypred_vs_timesteps(ypred_time_series, theta_time_series, trials_to_plot, max_time_steps=1000)
