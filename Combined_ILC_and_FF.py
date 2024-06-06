@@ -7,9 +7,9 @@ import numpy as np
 lambda_factor = 1  # Forgetting factor
 learning_rate = 0.01  # Learning rate
 lambda_pred = 0.7  # Forgetting factor for prediction
-gamma_pred = 0.2  # Learning rate for prediction
+gamma_pred = 0.02  # Learning rate for prediction
 lambda_ff = 0.7  # Forgetting factor for feedforward control
-gamma_ff = 0.2  # Learning rate for feedforward control
+gamma_ff = 0.02  # Learning rate for feedforward control
 
 
 def calculate_model_output_error(M_rho, uk_minus_1, y_pred_k_minus_1):
@@ -107,8 +107,8 @@ def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_tria
 
             error_time_series[trial][time_step] = errors.tolist()
 
-            data.ctrl[0] = new_torques[0] + perturbation
-            data.ctrl[1] = new_torques[1]
+            data.ctrl[0] = new_torques[0] + perturbation + uff[0]
+            data.ctrl[1] = new_torques[1] + uff[1]
 
             # Calculate SPE
             spe = current_angles - ypred_series
