@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 import mujoco.viewer
 import numpy as np
 
-lambda_factor = 1  # Forgetting factor
+lambda_factor = 0.999  # Forgetting factor
 learning_rate = 0.01  # Learning rate
-lambda_pred = 0.7  # Forgetting factor for prediction
-gamma_pred = 0.02  # Learning rate for prediction
-lambda_ff = 0.7  # Forgetting factor for feedforward control
+lambda_pred = 0.6  # Forgetting factor for prediction
+gamma_pred = 0.01  # Learning rate for prediction
+lambda_ff = 0.6  # Forgetting factor for feedforward control
 gamma_ff = 0.02  # Learning rate for feedforward control
 
 
@@ -88,7 +88,7 @@ def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_tria
             combined_torques_series[trial][time_step] = combined_torques[time_step].tolist()
             previous_torques_series[trial][time_step] = previous_torques[time_step].tolist()
 
-            perturbation = -1 if phase in ['Adaptation', 'Readaptation'] else 0
+            perturbation = -0.5 if phase in ['Adaptation', 'Readaptation'] else 0
 
             model_output_error = calculate_model_output_error(M_rho, combined_torques[time_step], ypred_series)
             moe_series[trial][time_step] = model_output_error.tolist()
@@ -430,6 +430,7 @@ def plot_moe(moe_series, trials_to_plot):
 
     plt.tight_layout()
     plt.show()
+
 
 def write_to_csv(error_result, filepath):
     with open(filepath, mode='w', newline='') as file:
