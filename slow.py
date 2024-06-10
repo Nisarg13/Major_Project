@@ -5,11 +5,12 @@ import mujoco.viewer
 import numpy as np
 
 lambda_factor = 0.999  # Forgetting factor
-learning_rate = 0.01  # Learning rate
+learning_rate = 0.011  # Learning rate
 lambda_pred = 0.6  # Forgetting factor for prediction
 gamma_pred = 0.01  # Learning rate for prediction
 lambda_ff = 0.6  # Forgetting factor for feedforward control
 gamma_ff = 0.02  # Learning rate for feedforward control
+
 
 def calculate_model_output_error(M_rho, uk_minus_1, y_pred_k_minus_1):
     """
@@ -87,7 +88,7 @@ def simulate_with_phases_and_viewer(model, data, viewer, actuator_list, num_tria
             combined_torques_series[trial][time_step] = combined_torques[time_step].tolist()
             previous_torques_series[trial][time_step] = previous_torques[time_step].tolist()
 
-            perturbation = -1 if phase in ['Adaptation', 'Readaptation'] else 0
+            perturbation = -0.5 if phase in ['Adaptation', 'Readaptation'] else 0
 
             model_output_error = calculate_model_output_error(M_rho, combined_torques[time_step], ypred_series)
             moe_series[trial][time_step] = model_output_error.tolist()
@@ -430,85 +431,6 @@ def plot_moe(moe_series, trials_to_plot):
     plt.tight_layout()
     plt.show()
 
-# def calculate_norms(previous_torques_series, uff_time_series, combined_torques_series, trials_to_plot, max_time_steps):
-#     norms_ilc = {}
-#     norms_uff = {}
-#     norms_uk = {}
-#
-#     for trial in trials_to_plot:
-#         if trial not in previous_torques_series or trial not in uff_time_series or trial not in combined_torques_series:
-#             print(f"Trial {trial} data not available.")
-#             continue
-#
-#         norm_ilc_list = []
-#         norm_uff_list = []
-#         norm_uk_list = []
-#
-#         for time_step in range(max_time_steps):
-#             ilc_torque = previous_torques_series[trial][time_step]
-#             uff_torque = uff_time_series[trial][time_step]
-#             uk_torque = combined_torques_series[trial][time_step]
-#
-#             norm_ilc_list.append(np.linalg.norm(ilc_torque))
-#             norm_uff_list.append(np.linalg.norm(uff_torque))
-#             norm_uk_list.append(np.linalg.norm(uk_torque))
-#
-#         norms_ilc[trial] = norm_ilc_list
-#         norms_uff[trial] = norm_uff_list
-#         norms_uk[trial] = norm_uk_list
-#
-#     return norms_ilc, norms_uff, norms_uk
-#
-# def plot_norms(norms_ilc, norms_uff, norms_uk, trials_to_plot, max_time_steps):
-#     plt.figure(figsize=(15, 7))
-#
-#     for trial in trials_to_plot:
-#         if trial not in norms_ilc or trial not in norms_uff or trial not in norms_uk:
-#             print(f"Trial {trial} data not available.")
-#             continue
-#
-#         plt.plot(range(max_time_steps), norms_ilc[trial], label=f'uILC Norm Trial {trial}', linestyle='--')
-#         plt.plot(range(max_time_steps), norms_uff[trial], label=f'uFF Norm Trial {trial}', linestyle='-.')
-#         plt.plot(range(max_time_steps), norms_uk[trial], label=f'uK Norm Trial {trial}', linestyle='-')
-#
-#     plt.xlabel('Time Step')
-#     plt.ylabel('Norm')
-#     plt.title('Norms of uILC, uFF, and uK for Trials 400 to 500')
-#     plt.legend()
-#     plt.grid(True)
-#     plt.show()
-
-# def plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combined_torques_series, trials_range):
-#     norms_uilc = []
-#     norms_uff = []
-#     norms_combined = []
-#
-#     for trial in trials_range:
-#         uilc_norm = np.linalg.norm(previous_torques_series[trial], axis=1)
-#         uff_norm = np.linalg.norm(uff_time_series[trial], axis=1)
-#         combined_norm = np.linalg.norm(combined_torques_series[trial], axis=1)
-#
-#         norms_uilc.append(np.mean(uilc_norm))
-#         norms_uff.append(np.mean(uff_norm))
-#         norms_combined.append(np.mean(combined_norm))
-#
-#     iterations = range(trials_range[0], trials_range[-1] + 1)
-#
-#     plt.figure(figsize=(10, 6))
-#     plt.plot(iterations, norms_uilc, label='$u_{ILC}$ Norm')
-#     plt.plot(iterations, norms_uff, label='$u_{FF}$ Norm')
-#     plt.plot(iterations, norms_combined, label='Combined $u_k$ Norm')
-#
-#     plt.xlabel('Iterations (k)')
-#     plt.ylabel('Norm')
-#     plt.title('Norm of $u_{ILC}$, $u_{FF}$, and Combined $u_k$ for Trials 400 to 500')
-#     plt.legend()
-#     plt.grid(True)
-#     plt.xticks(ticks=iterations, labels=iterations, rotation=45)
-#     plt.tight_layout()
-#     plt.show()
-
-
 def plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combined_torques_series, trials_range):
     norms_uilc = []
     norms_uff = []
@@ -542,7 +464,6 @@ def plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combi
 
     plt.tight_layout()
     plt.show()
-
 def write_to_csv(error_result, filepath):
     with open(filepath, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -567,19 +488,8 @@ def main():
         print(f"Results written to {csv_file_path}")
         # Plotting part remains the same
         trials_to_plot = [1, 50, 100, 150, 200, 250, 300, 350, 400]  # Trials to plot
-
-        # Define the range of trials
         trials_range = list(range(400, 501))
-        # Calculate norms
-        # norms_ilc, norms_uff, norms_uk = calculate_norms(previous_torques_series, uff_time_series,
-        #                                                  combined_torques_series, trials_to_plot1, max_time_steps=1000)
-
-        # Plot norms
-        # plot_norms(norms_ilc, norms_uff, norms_uk, trials_to_plot, max_time_steps=1000)
-
-        # Call the function to plot the norms
         plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combined_torques_series, trials_range)
-
         plot_specific_trials_theta_time_series(theta_time_series, trials_to_plot, 1000)  # Assuming 1000 time steps
 
         plot_error_vs_timesteps(theta_time_series, np.pi / 4, trials_to_plot, 1000)  # Plot error vs time steps
