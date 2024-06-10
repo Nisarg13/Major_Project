@@ -297,10 +297,10 @@ def plot_uff_series(uff_time_series, trials_to_plot, max_time_steps):
 
 def plot_mse_across_phases(mse_values):
     # Dividing the trials into phases, each with 100 trials
-    baseline_trials = mse_values[0:100]
-    adaptation_trials = mse_values[400:500]
-    washout_trials = mse_values[600:700]
-    readaptation_trials = mse_values[800:900]
+    baseline_trials = mse_values[200:400]
+    adaptation_trials = mse_values[400:600]
+    washout_trials = mse_values[600:800]
+    readaptation_trials = mse_values[800:1000]
 
     # Plotting
     plt.figure(figsize=(5, 5))
@@ -431,6 +431,7 @@ def plot_moe(moe_series, trials_to_plot):
     plt.tight_layout()
     plt.show()
 
+
 def plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combined_torques_series, trials_range):
     norms_uilc = []
     norms_uff = []
@@ -447,23 +448,88 @@ def plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combi
 
     iterations = range(trials_range[0], trials_range[-1] + 1)
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(iterations, norms_uilc, label='$u_{ILC}$ Norm')
-    plt.plot(iterations, norms_uff, label='$u_{FF}$ Norm')
-    plt.plot(iterations, norms_combined, label='Combined $u_k$ Norm')
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
 
-    plt.xlabel('Iterations (k)')
-    plt.ylabel('Norm')
+    # Plot norms of u_ILC and combined u_k on the first subplot
+    ax1.plot(iterations, norms_uilc, label='$u_{ILC}$ Norm')
+    ax1.plot(iterations, norms_combined, label='Combined $u_k$ Norm')
+    ax1.plot(iterations, norms_uff, label='$u_{FF}$ Norm')
+    ax1.set_xlabel('Iterations (k)')
+    ax1.set_ylabel('Norm')
     plt.title('Norm of $u_{ILC}$, $u_{FF}$, and Combined $u_k$ for Trials 400 to 500')
-    plt.legend()
-    plt.grid(True)
+    ax1.legend()
+    ax1.grid(True)
 
     # Customize x-axis ticks
     x_ticks = list(range(400, 501, 10))
-    plt.xticks(ticks=x_ticks, labels=x_ticks, rotation=45)
+    ax1.set_xticks(x_ticks)
+    ax1.set_xticklabels(x_ticks, rotation=45)
+
+    # Plot norm of u_FF on the second subplot
+    ax2.plot(iterations, norms_uff, label='$u_{FF}$ Norm', color='orange')
+    ax2.set_xlabel('Iterations (k)')
+    ax2.set_ylabel('Norm')
+    ax2.set_title('Norm of $u_{FF}$ for Trials 400 to 500')
+    ax2.legend()
+    ax2.grid(True)
+
+    # Customize x-axis ticks
+    ax2.set_xticks(x_ticks)
+    ax2.set_xticklabels(x_ticks, rotation=45)
 
     plt.tight_layout()
     plt.show()
+
+
+def last_plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combined_torques_series, trials_range):
+    norms_uilc = []
+    norms_uff = []
+    norms_combined = []
+
+    for trial in trials_range:
+        uilc_norm = np.linalg.norm(previous_torques_series[trial], axis=1)
+        uff_norm = np.linalg.norm(uff_time_series[trial], axis=1)
+        combined_norm = np.linalg.norm(combined_torques_series[trial], axis=1)
+
+        norms_uilc.append(np.mean(uilc_norm))
+        norms_uff.append(np.mean(uff_norm))
+        norms_combined.append(np.mean(combined_norm))
+
+    iterations = range(trials_range[0], trials_range[-1] + 1)
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+
+    # Plot norms of u_ILC and combined u_k on the first subplot
+    ax1.plot(iterations, norms_uilc, label='$u_{ILC}$ Norm')
+    ax1.plot(iterations, norms_combined, label='Combined $u_k$ Norm')
+    ax1.plot(iterations, norms_uff, label='$u_{FF}$ Norm')
+    ax1.set_xlabel('Iterations (k)')
+    ax1.set_ylabel('Norm')
+    plt.title('Norm of $u_{ILC}$, $u_{FF}$, and Combined $u_k$ for Trials 400 to 500')
+    ax1.legend()
+    ax1.grid(True)
+
+    # Customize x-axis ticks
+    x_ticks = list(range(800, 1000, 10))
+    ax1.set_xticks(x_ticks)
+    ax1.set_xticklabels(x_ticks, rotation=45)
+
+    # Plot norm of u_FF on the second subplot
+    ax2.plot(iterations, norms_uff, label='$u_{FF}$ Norm', color='orange')
+    ax2.set_xlabel('Iterations (k)')
+    ax2.set_ylabel('Norm')
+    ax2.set_title('Norm of $u_{FF}$ for Trials 800 to 1000')
+    ax2.legend()
+    ax2.grid(True)
+
+    # Customize x-axis ticks
+    ax2.set_xticks(x_ticks)
+    ax2.set_xticklabels(x_ticks, rotation=45)
+
+    plt.tight_layout()
+    plt.show()
+
+
 def write_to_csv(error_result, filepath):
     with open(filepath, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -489,9 +555,12 @@ def main():
         write_to_csv(error_result, csv_file_path)
         print(f"Results written to {csv_file_path}")
         # Plotting part remains the same
-        trials_to_plot = [1, 50, 100, 150, 200, 250, 300, 350, 400]  # Trials to plot
+        trials_to_plot = [1, 50, 200, 400, 401, 500, 600, 601, 700, 800, 801, 900, 1000]  # Trials to plot
         trials_range = list(range(400, 501))
+        last_trials_range = list(range(800, 1000))
         plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combined_torques_series, trials_range)
+        last_plot_norms_of_control_inputs(previous_torques_series, uff_time_series, combined_torques_series,
+                                          last_trials_range)
         plot_specific_trials_theta_time_series(theta_time_series, trials_to_plot, 1000)  # Assuming 1000 time steps
 
         plot_error_vs_timesteps(theta_time_series, np.pi / 4, trials_to_plot, 1000)  # Plot error vs time steps
