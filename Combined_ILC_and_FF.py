@@ -303,7 +303,7 @@ def plot_mse_across_phases(mse_values):
     readaptation_trials = mse_values[800:900]
 
     # Plotting
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(5, 5))
     plt.plot(baseline_trials, label='Baseline', linestyle=':', color='black', linewidth=2)
     plt.plot(adaptation_trials, label='Adaptation', linestyle='-', color='red', linewidth=2)
     plt.plot(washout_trials, label='Washout', linestyle='--', color='green', linewidth=2)
@@ -441,6 +441,8 @@ def write_to_csv(error_result, filepath):
 
 
 def main():
+    global error_result, theta_time_series, previous_torques_series, spe_time_series, ypred_time_series
+    global error_time_series, moe_series, uff_time_series, combined_torques_series
     model_path = '2R.xml'  # Replace with your actual model path
     actuator_list = ['torque1', 'torque2']  # Replace with your own actuator list
     model = mujoco.MjModel.from_xml_path(model_path)
